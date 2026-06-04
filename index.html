@@ -73,6 +73,7 @@
     .empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
     .empty-state .icon{font-size:40px;margin-bottom:12px;}
     .voice-status{font-size:12px;text-align:center;margin-top:6px;color:var(--text-secondary);}
+    .voice-retry{background:#FFC107;color:#1E2A3A;margin-top:6px;padding:8px;border-radius:40px;font-size:12px;}
   </style>
 </head>
 <body>
@@ -97,12 +98,13 @@
   </div>
   <div class="card" id="addCard">
     <div class="section-title">➕ New Entry</div>
-    <!-- VOICE CONTROLS: Start + Stop + Status -->
+    <!-- VOICE CONTROLS: Start + Stop + Status + Retry -->
     <div style="display:flex;gap:10px;margin-bottom:12px;">
       <button class="voice-btn" id="micBtn" style="flex:1;">🎤 Start Listening</button>
       <button class="voice-btn voice-stop" id="stopMicBtn" style="flex:1;background:#eaeef5;color:#2D5F9E;">⏹️ Stop</button>
     </div>
     <div id="voiceStatus" class="voice-status">⚪ Voice idle</div>
+    <button id="retryVoiceBtn" class="voice-retry" style="display:none;">🔄 Retry Voice / Request Mic Access</button>
     <div class="input-group"><label>Type</label><select id="txnType"><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
     <div class="input-group"><label>Amount (₹)</label><input type="number" id="amount" placeholder="0"></div>
     <div class="input-group"><label>Description / Party</label><input type="text" id="description" placeholder="e.g., Grocery, Ramesh"></div>
@@ -181,10 +183,9 @@
   };
   const escapeHtml = (str) => String(str).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
   const formatCurrency = (amt) => `₹${amt.toLocaleString('en-IN')}`;
-  // FIXED: Secure context detection – only window.isSecureContext is enough for SpeechRecognition
   const isSecureContext = () => window.isSecureContext === true;
 
-  /* ========= INDEXEDDB ========= */
+  /* ========= INDEXEDDB (unchanged) ========= */
   const DB = (() => {
     let db = null;
     const DB_NAME = 'LedgerDB', STORE_TX = 'transactions', STORE_RECEIPTS = 'receipts';
@@ -256,7 +257,7 @@
     return { getAllTx, saveTx, deleteTx, clearAllTx, saveReceipt, getReceipt, compressImage };
   })();
 
-  /* ========= STORAGE HELPER ========= */
+  /* ========= STORAGE HELPER (unchanged) ========= */
   const StorageHelper = {
     async migrateFromLocal() {
       try {
@@ -300,29 +301,31 @@
     }
   };
 
-  /* ========= PRODUCTION-GRADE VOICE HANDLER ========= */
+  /* ========= PRODUCTION-GRADE VOICE HANDLER (FIXED FOR PERMISSION DENIED) ========= */
   const VoiceHandler = (() => {
     let recognition = null;
     let listening = false;
     let retryCount = 0;
     const MAX_RETRIES = 2;
     let currentCallback = null;
+    let isRequestingPermission = false;
 
-    // Detailed logging for debugging
-    const logEvent = (eventName, detail = '') => {
-      console.log(`[Voice] ${eventName}${detail ? ': ' + detail : ''}`);
-    };
+    const logEvent = (eventName, detail = '') => console.log(`[Voice] ${eventName}${detail ? ': ' + detail : ''}`);
 
-    const updateUIStatus = (status) => {
+    const updateUIStatus = (status, showRetry = false) => {
       const statusDiv = document.getElementById('voiceStatus');
       if (statusDiv) statusDiv.innerHTML = status;
+      const retryBtn = document.getElementById('retryVoiceBtn');
+      if (retryBtn) retryBtn.style.display = showRetry ? 'block' : 'none';
       const micBtn = document.getElementById('micBtn');
-      if (listening) {
-        micBtn.classList.add('listening');
-        micBtn.innerHTML = '🎤 Listening...';
-      } else {
-        micBtn.classList.remove('listening');
-        micBtn.innerHTML = '🎤 Start Listening';
+      if (micBtn) {
+        if (listening) {
+          micBtn.classList.add('listening');
+          micBtn.innerHTML = '🎤 Listening...';
+        } else {
+          micBtn.classList.remove('listening');
+          micBtn.innerHTML = '🎤 Start Listening';
+        }
       }
     };
 
@@ -334,26 +337,55 @@
         return false;
       }
       recognition = new SpeechRecognition();
-      recognition.continuous = false;      // single phrase
-      recognition.interimResults = false;  // only final
-      // fallback language: try en-IN, then en-US, then default
+      recognition.continuous = false;
+      recognition.interimResults = false;
       recognition.lang = 'en-IN';
       recognition.maxAlternatives = 1;
       logEvent('Initialized', 'SpeechRecognition created');
       return true;
     };
 
-    // Advanced parsing: amount (digits + decimals), type, category, description
+    // Force a fresh permission prompt using getUserMedia
+    const requestMicrophonePermission = async () => {
+      if (isRequestingPermission) return false;
+      isRequestingPermission = true;
+      updateUIStatus('🎤 Requesting microphone access...', false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop()); // release immediately
+        logEvent('Permission granted via getUserMedia');
+        updateUIStatus('✅ Microphone access granted. You can now use voice.', false);
+        setTimeout(() => updateUIStatus('⚪ Voice idle'), 2000);
+        return true;
+      } catch (err) {
+        logEvent('Permission request failed', err.message);
+        updateUIStatus('❌ Microphone access denied. Check browser/system settings.', true);
+        return false;
+      } finally {
+        isRequestingPermission = false;
+      }
+    };
+
+    // Check current permission state
+    const checkPermission = async () => {
+      if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
+      try {
+        const result = await navigator.permissions.query({ name: 'microphone' });
+        logEvent('Permission state', result.state);
+        return result.state;
+      } catch (e) {
+        return 'unknown';
+      }
+    };
+
     const parseVoiceCommand = (transcript) => {
       const text = transcript.toLowerCase().trim();
       logEvent('Parsing', `Raw: "${text}"`);
       
-      // Determine type (credit/income vs debit/expense)
-      let type = 'debit'; // default expense
+      let type = 'debit';
       if (/(received|got|credit|income|salary|paid to me)/i.test(text)) type = 'credit';
       if (/(spent|paid|debit|expense|bought|purchased)/i.test(text)) type = 'debit';
       
-      // Extract amount (supports "250", "250.50", "1,000")
       let amount = null;
       const amountRegex = /(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/;
       const match = text.match(amountRegex);
@@ -362,7 +394,6 @@
         if (isNaN(amount)) amount = null;
       }
       
-      // If no number found, try to detect words like "two hundred fifty" – advanced: optional, but basic
       if (amount === null) {
         const wordMap = {
           'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10,
@@ -385,13 +416,10 @@
         if (total > 0 && total < 100000) amount = total;
       }
       
-      // Extract category and description
       let description = text.replace(amountRegex, '').replace(/(spent|paid|received|on|for|debit|credit|rs|rupees)/gi, '').trim();
       if (!description) description = 'Voice entry';
-      // Capitalize first letter
       description = description.charAt(0).toUpperCase() + description.slice(1);
       
-      // Auto-detect category from keywords
       let category = 'Other';
       const catMap = {
         food: 'Food', grocery: 'Food', lunch: 'Food', dinner: 'Food', restaurant: 'Food',
@@ -410,18 +438,15 @@
 
     const stop = () => {
       if (recognition && listening) {
-        try {
-          recognition.stop();
-          logEvent('Stop requested');
-        } catch(e) { logEvent('Stop error', e.message); }
+        try { recognition.stop(); logEvent('Stop requested'); } catch(e) { logEvent('Stop error', e.message); }
       }
       listening = false;
       retryCount = 0;
-      updateUIStatus('⚪ Voice idle');
-      if (currentCallback) currentCallback = null;
+      updateUIStatus('⚪ Voice idle', false);
+      currentCallback = null;
     };
 
-    const start = (callback) => {
+    const start = async (callback) => {
       if (!recognition) {
         const supported = init();
         if (!supported) {
@@ -435,27 +460,36 @@
         updateUIStatus('🔒 HTTPS required');
         return;
       }
+
+      // Check permission state first
+      const permState = await checkPermission();
+      if (permState === 'denied') {
+        updateUIStatus('❌ Microphone permission denied globally. Click "Retry" to request again.', true);
+        UI.toast('Microphone permission denied. Use the Retry button to re-request.');
+        return;
+      }
+
       if (listening) {
         stop();
         setTimeout(() => start(callback), 200);
         return;
       }
+
       currentCallback = callback;
       retryCount = 0;
       
-      // Setup event handlers with detailed logging
       recognition.onstart = () => {
-        logEvent('onstart', 'Microphone active, listening');
+        logEvent('onstart', 'Microphone active');
         listening = true;
-        updateUIStatus('🎙️ Listening... speak now');
+        updateUIStatus('🎙️ Listening... speak now', false);
       };
       recognition.onspeechstart = () => {
         logEvent('onspeechstart', 'Speech detected');
-        updateUIStatus('🗣️ Speech detected...');
+        updateUIStatus('🗣️ Speech detected...', false);
       };
       recognition.onspeechend = () => {
         logEvent('onspeechend', 'Speech ended, processing');
-        updateUIStatus('⏳ Processing...');
+        updateUIStatus('⏳ Processing...', false);
       };
       recognition.onaudiostart = () => logEvent('onaudiostart', 'Audio capture started');
       recognition.onaudioend = () => logEvent('onaudioend', 'Audio capture ended');
@@ -464,7 +498,7 @@
         logEvent('onresult', 'Result received');
         const transcript = event.results[0][0].transcript;
         logEvent('Transcript', `"${transcript}"`);
-        updateUIStatus('✅ Parsing command...');
+        updateUIStatus('✅ Parsing command...', false);
         const parsed = parseVoiceCommand(transcript);
         if (parsed.amount !== null && parsed.amount > 0) {
           if (currentCallback) {
@@ -473,45 +507,54 @@
           }
         } else {
           UI.toast(`Could not detect amount in: "${transcript}"`);
-          updateUIStatus('❌ No amount found');
+          updateUIStatus('❌ No amount found', false);
         }
         stop();
       };
       
-      recognition.onerror = (event) => {
+      recognition.onerror = async (event) => {
         logEvent('onerror', `code: ${event.error}`);
         listening = false;
         let userMsg = '';
+        let showRetry = false;
         switch(event.error) {
-          case 'not-allowed': userMsg = 'Microphone permission denied. Check browser settings.'; break;
+          case 'not-allowed':
+            // Check actual permission state
+            const actualPerm = await checkPermission();
+            if (actualPerm === 'granted') {
+              userMsg = 'Microphone is busy (another app/tab may be using it). Close other apps and try again.';
+              showRetry = true;
+            } else if (actualPerm === 'denied') {
+              userMsg = 'Microphone permission denied. Click "Retry" to request access.';
+              showRetry = true;
+            } else {
+              userMsg = 'Microphone access failed. Try the Retry button.';
+              showRetry = true;
+            }
+            break;
           case 'no-speech': userMsg = 'No speech detected. Please try again.'; break;
-          case 'audio-capture': userMsg = 'No microphone found.'; break;
+          case 'audio-capture': userMsg = 'No microphone found.'; showRetry = true; break;
           case 'network': userMsg = 'Network error. Check connection.'; break;
           default: userMsg = `Voice error: ${event.error}`;
         }
         UI.toast(userMsg);
-        updateUIStatus(`⚠️ ${userMsg}`);
-        if (event.error === 'not-allowed') {
-          // permanent failure, no retry
-          retryCount = MAX_RETRIES;
-        }
+        updateUIStatus(`⚠️ ${userMsg}`, showRetry);
         stop();
       };
       
       recognition.onend = () => {
-        logEvent('onend', `Recognition ended. listening=${listening} retry=${retryCount}`);
+        logEvent('onend', `listening=${listening} retry=${retryCount}`);
         if (listening) {
-          // ended unexpectedly without onresult?
-          if (retryCount < MAX_RETRIES && !currentCallback?.handled) {
+          if (retryCount < MAX_RETRIES) {
             retryCount++;
             logEvent('Auto-restart', `Attempt ${retryCount}/${MAX_RETRIES}`);
-            setTimeout(() => start(currentCallback), 300);
+            setTimeout(() => start(currentCallback), 500);
           } else {
             listening = false;
-            updateUIStatus('⚪ Voice idle');
+            updateUIStatus('⚪ Voice idle (auto-retry failed)', false);
           }
         } else {
-          updateUIStatus('⚪ Voice idle');
+          updateUIStatus('⚪ Voice idle', false);
         }
       };
       
@@ -521,20 +564,19 @@
       } catch (err) {
         logEvent('start exception', err.message);
         UI.toast('Could not start voice: ' + err.message);
-        updateUIStatus('❌ Start failed');
+        updateUIStatus('❌ Start failed', true);
         listening = false;
       }
     };
     
-    // initial check
     const isSupported = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!isSupported()) updateUIStatus('❌ Voice not supported');
     else init();
     
-    return { start, stop, isSupported: () => !!recognition };
+    return { start, stop, isSupported, requestMicrophonePermission };
   })();
 
-  /* ========= CHARTS ========= */
+  /* ========= CHARTS (unchanged) ========= */
   const Charts = (() => {
     let trendChart = null, pieChart = null;
     const destroyCharts = () => {
@@ -585,7 +627,7 @@
     return { update };
   })();
 
-  /* ========= PDF EXPORT ========= */
+  /* ========= PDF EXPORT (unchanged) ========= */
   const PDFExporter = {
     async generate(transactions, logoFile, reportName) {
       if (typeof window.jspdf === 'undefined') { UI.toast('PDF library not loaded'); return; }
@@ -758,7 +800,6 @@
       this.bindEvents();
     },
     bindEvents() {
-      // Add transaction (unchanged)
       document.getElementById('addBtn').addEventListener('click', async () => {
         const type = document.getElementById('txnType').value;
         const amount = parseFloat(document.getElementById('amount').value);
@@ -778,7 +819,7 @@
         } catch(e) { UI.toast('Failed to save'); }
       });
 
-      // Voice integration: callback fills form fields
+      // Voice callback fills form
       const voiceCallback = ({ amount, type, description, category }) => {
         if (amount !== null && amount > 0) document.getElementById('amount').value = amount;
         document.getElementById('txnType').value = type;
@@ -795,6 +836,13 @@
       document.getElementById('micBtn').addEventListener('click', () => VoiceHandler.start(voiceCallback));
       document.getElementById('stopMicBtn').addEventListener('click', () => VoiceHandler.stop());
       document.getElementById('voiceFloatBtn').addEventListener('click', () => VoiceHandler.start(voiceCallback));
+      
+      // Retry button: request fresh mic permission
+      document.getElementById('retryVoiceBtn').addEventListener('click', async () => {
+        await VoiceHandler.requestMicrophonePermission();
+        // After permission granted, user can click Start again
+        UI.toast('Permission requested. Now click "Start Listening".');
+      });
 
       // Other UI events (unchanged)
       document.getElementById('scrollAddBtn').addEventListener('click', () => document.getElementById('addCard').scrollIntoView({behavior:'smooth'}));
@@ -842,7 +890,6 @@
           const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `daily_${todayStr}.csv`; a.click(); URL.revokeObjectURL(a.href);
         });
       });
-      // Edit modal events
       document.getElementById('saveEditBtn').addEventListener('click', async () => {
         const id = document.getElementById('editId').value;
         const all = await DB.getAllTx();
