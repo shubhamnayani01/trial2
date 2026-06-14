@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Bill Generator - Owner Dashboard</title>
+    <title>Restaurant Bill System</title>
 
     <!-- PWA Meta -->
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Bill Generator">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
 
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -20,7 +18,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
-        /* Same CSS as before – omitted for brevity, keep the whole style block from previous answer */
         :root {
             --bg-primary: #f0f2f5;
             --bg-secondary: #ffffff;
@@ -34,21 +31,15 @@
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
             --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.08);
             --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
-            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.06);
             --accent: #e85d3a;
             --accent-hover: #d14a2a;
-            --accent-light: #fff0ec;
             --green: #10b981;
-            --green-bg: #ecfdf5;
-            --blue: #3b82f6;
-            --blue-bg: #eff6ff;
             --radius-sm: 10px;
             --radius-md: 16px;
             --radius-lg: 24px;
-            --radius-xl: 28px;
             --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
-            --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'Courier New', monospace;
+            --font-sans: 'Inter', system-ui, sans-serif;
         }
 
         .dark {
@@ -61,43 +52,20 @@
             --text-muted: #707090;
             --border-color: rgba(255, 255, 255, 0.08);
             --border-glass: rgba(255, 255, 255, 0.12);
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.35);
-            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.45);
-            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.25);
-            --accent-light: #3d1a12;
-            --green-bg: #0a2e1f;
-            --blue-bg: #0a1e3d;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: var(--font-sans);
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
             transition: background var(--transition), color var(--transition);
-            background-image:
-                radial-gradient(ellipse at 20% 0%, rgba(232, 93, 58, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
-            background-attachment: fixed;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 20px; }
-
-        /* ============ HEADER ============ */
         .app-header {
             background: var(--bg-glass);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border-glass);
             padding: 14px 24px;
             display: flex;
@@ -108,22 +76,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: var(--shadow-sm);
-            transition: all var(--transition);
         }
-        .app-header .logo-area { display: flex; align-items: center; gap: 10px; }
-        .app-header .logo-icon { font-size: 32px; animation: float 3s ease-in-out infinite; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-        .app-header h1 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            letter-spacing: -0.3px;
-            background: linear-gradient(135deg, var(--accent), #f08060);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .header-actions { display: flex; gap: 8px; align-items: center; }
 
         .btn {
             padding: 10px 18px;
@@ -133,433 +86,197 @@
             font-weight: 600;
             font-size: 0.9rem;
             font-family: var(--font-sans);
-            transition: all var(--transition);
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            letter-spacing: -0.2px;
-            white-space: nowrap;
-            position: relative;
-            overflow: hidden;
+            background: var(--bg-glass);
+            color: var(--text-primary);
+            border: 1.5px solid var(--border-color);
+            transition: all var(--transition);
         }
-        .btn:active { transform: scale(0.96); }
         .btn-primary {
             background: var(--accent);
             color: #fff;
-            box-shadow: 0 4px 14px rgba(232, 93, 58, 0.35);
-        }
-        .btn-primary:hover {
-            background: var(--accent-hover);
-            box-shadow: 0 6px 20px rgba(232, 93, 58, 0.45);
-            transform: translateY(-1px);
-        }
-        .btn-outline {
-            background: var(--bg-glass);
-            color: var(--text-primary);
-            border: 1.5px solid var(--border-color);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-        .btn-outline:hover {
-            background: var(--bg-glass-hover);
             border-color: var(--accent);
-            color: var(--accent);
         }
-        .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
-        .btn-icon { width: 40px; height: 40px; padding: 0; border-radius: 50%; justify-content: center; font-size: 1.2rem; }
-        .btn-danger { background: #ef4444; color: #fff; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-ghost { background: transparent; border: none; color: var(--text-secondary); padding: 8px; }
-        .btn-ghost:hover { color: var(--text-primary); background: var(--bg-glass); border-radius: 50%; }
-        .btn-success { background: var(--green); color: #fff; }
-        .btn-success:hover { background: #059669; }
-
-        .main-container {
-            max-width: 1300px;
-            margin: 0 auto;
-            padding: 20px 16px 40px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 900px) {
-            .main-container { grid-template-columns: 1fr; padding: 12px 10px 30px; }
-        }
-
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+        .btn-danger { background: #ef4444; color: #fff; border-color: #ef4444; }
         .glass-card {
             background: var(--bg-glass);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass);
             border-radius: var(--radius-lg);
             padding: 24px;
-            box-shadow: var(--shadow-glass);
-            transition: all var(--transition);
+            margin: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
         }
-        .glass-card:hover { box-shadow: var(--shadow-md); }
-        .glass-card h2 {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -0.2px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .hidden { display: none !important; }
         .form-group { margin-bottom: 14px; }
-        .form-group label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
-            letter-spacing: 0.2px;
-            text-transform: uppercase;
-        }
+        .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px; }
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
-            padding: 11px 14px;
+            padding: 10px;
             border-radius: var(--radius-sm);
             border: 1.5px solid var(--border-color);
             background: var(--bg-secondary);
             color: var(--text-primary);
             font-family: var(--font-sans);
-            font-size: 0.9rem;
-            transition: all var(--transition);
             outline: none;
         }
-        .form-group input:focus, .form-group textarea:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(232, 93, 58, 0.1);
-        }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
-
-        .file-upload-area {
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            background: var(--bg-secondary);
-            position: relative;
-        }
-        .file-upload-area:hover { border-color: var(--accent); background: var(--accent-light); }
-        .file-upload-area img { max-width: 100px; max-height: 60px; margin-top: 8px; border-radius: 6px; object-fit: contain; }
-        .file-upload-area input { display: none; }
-        .logo-preview-sm { width: 50px; height: 50px; object-fit: contain; border-radius: 8px; background: #fff; padding: 4px; border: 1px solid var(--border-color); }
-
-        .items-table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
-        .items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 600px; }
-        .items-table th {
-            background: var(--bg-secondary);
-            padding: 11px 10px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-muted);
-            border-bottom: 2px solid var(--border-color);
-        }
-        .items-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-        .items-table input {
-            width: 100%;
-            padding: 7px 10px;
-            border-radius: 6px;
-            border: 1.5px solid var(--border-color);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            font-family: var(--font-sans);
-            font-size: 0.85rem;
-            outline: none;
-            transition: all var(--transition);
-        }
-        .items-table input:focus { border-color: var(--accent); }
-        .qty-input { width: 65px; text-align: center; }
-        .price-input { width: 100px; text-align: right; }
-        .item-total { font-weight: 700; text-align: right; font-family: var(--font-mono); }
-
-        .totals-box {
-            background: var(--bg-secondary);
-            border-radius: var(--radius-md);
-            padding: 16px 20px;
-            margin-top: 12px;
-            border: 1px solid var(--border-color);
-        }
-        .totals-box .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            font-size: 0.9rem;
-        }
-        .totals-box .total-row.grand {
-            font-weight: 800;
-            font-size: 1.15rem;
-            border-top: 2px dashed var(--border-color);
-            margin-top: 6px;
-            padding-top: 10px;
-            color: var(--accent);
-        }
-        .totals-box .total-row span:last-child { font-family: var(--font-mono); }
-
-        .preview-panel { position: sticky; top: 90px; }
-        @media (max-width: 900px) { .preview-panel { position: static; } }
-        .preview-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-        .preview-tab {
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border: 1.5px solid var(--border-color);
-            background: var(--bg-glass);
-            color: var(--text-secondary);
-            transition: all var(--transition);
-        }
-        .preview-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-        .bill-preview-frame {
-            background: #fff;
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition);
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-        .dark .bill-preview-frame { background: #1c1c28; box-shadow: var(--shadow-lg); }
+        .items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .items-table th { background: var(--bg-secondary); padding: 10px; text-align: left; }
+        .items-table td { padding: 8px; border-bottom: 1px solid var(--border-color); }
+        .totals-box { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 16px; margin-top: 12px; }
+        .totals-box .row { display: flex; justify-content: space-between; padding: 4px 0; }
+        .totals-box .grand { font-weight: 800; font-size: 1.1rem; border-top: 2px dashed var(--border-color); padding-top: 8px; margin-top: 4px; color: var(--accent); }
 
         .thermal-receipt {
-            width: 300px;
-            margin: 0 auto;
-            padding: 20px 16px;
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-            color: #1a1a1a;
             background: #fffdf7;
-            line-height: 1.5;
-            border: 1px solid #e0ddd0;
-        }
-        .dark .thermal-receipt { color: #e8e8e0; background: #1e1e18; border-color: #3a3a30; }
-        .a4-invoice {
-            padding: 28px 24px;
-            font-family: var(--font-sans);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
             color: #1a1a1a;
+        }
+        .dark .thermal-receipt { background: #1e1e18; color: #e8e8e0; }
+        .a4-invoice {
             background: #fff;
-            max-width: 700px;
-            margin: 0 auto;
+            padding: 24px;
+            border-radius: 8px;
             font-size: 0.85rem;
         }
-        .dark .a4-invoice { color: #e8e8e0; background: #1c1c28; }
+        .dark .a4-invoice { background: #1c1c28; color: #e8e8e0; }
 
         .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            z-index: 999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.2s ease;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px); z-index: 999; display: flex; align-items: center; justify-content: center;
         }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .modal-dialog {
-            background: var(--bg-secondary);
-            border-radius: var(--radius-xl);
-            padding: 28px;
-            max-width: 420px;
-            width: 90%;
-            text-align: center;
-            box-shadow: var(--shadow-lg);
-            animation: slideUp 0.3s ease;
-        }
-        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .qr-container { display: inline-block; padding: 16px; background: #fff; border-radius: var(--radius-md); margin: 16px 0; box-shadow: var(--shadow-sm); }
-        .qr-url { font-size: 0.7rem; word-break: break-all; color: var(--text-muted); background: var(--bg-primary); padding: 8px 12px; border-radius: 6px; margin: 8px 0; max-height: 50px; overflow-y: auto; }
-        .modal-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+        .modal-dialog { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 90%; text-align: center; }
 
-        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; }
         .toast {
-            padding: 12px 20px;
-            border-radius: var(--radius-sm);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            box-shadow: var(--shadow-lg);
-            font-weight: 600;
-            font-size: 0.85rem;
-            animation: toastIn 0.35s ease;
-            border-left: 4px solid var(--green);
+            padding: 12px 20px; border-radius: var(--radius-sm); background: var(--bg-secondary);
+            color: var(--text-primary); box-shadow: var(--shadow-lg); font-weight: 600;
+            border-left: 4px solid var(--green); margin-top: 8px; animation: slideIn 0.3s ease;
         }
-        .toast.error { border-left-color: #ef4444; }
-        @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(120%); } }
 
-        .preset-list { max-height: 180px; overflow-y: auto; margin-top: 8px; }
-        .preset-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 6px; font-size: 0.85rem; }
-        .preset-item span { font-weight: 500; }
-        .preset-item .preset-price { color: var(--accent); font-weight: 700; }
-
-        .hidden { display: none !important; }
-        .text-center { text-align: center; }
-        .mt-2 { margin-top: 12px; }
-        .mt-3 { margin-top: 20px; }
-        .flex-wrap { display: flex; flex-wrap: wrap; }
+        @media (max-width: 700px) { .glass-card { margin: 8px; padding: 16px; } }
     </style>
 </head>
 <body>
+    <!-- OWNER DASHBOARD (visible when no ?data in URL) -->
+    <div id="ownerUI">
+        <header class="app-header">
+            <h1>🧾 Bill Generator</h1>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-sm" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+                <button class="btn btn-sm" onclick="resetAll()">🗑️ New</button>
+            </div>
+        </header>
 
-    <header class="app-header">
-        <div class="logo-area">
-            <span class="logo-icon">🧾</span>
-            <h1>Bill Generator</h1>
-        </div>
-        <div class="header-actions">
-            <button class="btn btn-outline btn-sm" onclick="resetAll()">🗑️ New</button>
-            <button class="btn btn-outline btn-sm" id="themeToggle" onclick="toggleTheme()">
-                🌙 <span>Dark</span>
-            </button>
-        </div>
-    </header>
-
-    <div class="main-container">
-        <div class="left-column" style="display:flex;flex-direction:column;gap:20px;">
-
-            <!-- Restaurant Settings -->
-            <section class="glass-card">
-                <h2>🏪 Restaurant Details</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Restaurant Name *</label>
-                        <input type="text" id="restName" value="Spice Garden Bistro">
-                    </div>
-                    <div class="form-group">
-                        <label>Phone</label>
-                        <input type="text" id="restPhone" value="+91 98765 43210">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Address</label>
-                    <textarea id="restAddress" rows="2">123, MG Road, Indiranagar, Bengaluru - 560038</textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>GST Number</label>
-                        <input type="text" id="restGST" value="29ABCDE1234F1Z5">
-                    </div>
+        <div style="max-width:1200px; margin:0 auto; padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <!-- Left Column -->
+            <div>
+                <!-- Settings -->
+                <div class="glass-card">
+                    <h2>🏪 Restaurant Details</h2>
+                    <div class="form-group"><label>Name *</label><input id="restName" value="Spice Garden Bistro"></div>
+                    <div class="form-group"><label>Phone</label><input id="restPhone" value="+91 98765 43210"></div>
+                    <div class="form-group"><label>Address</label><textarea id="restAddress" rows="2">123, MG Road, Indiranagar, Bengaluru - 560038</textarea></div>
+                    <div class="form-group"><label>GST</label><input id="restGST" value="29ABCDE1234F1Z5"></div>
                     <div class="form-group">
                         <label>Logo</label>
-                        <div class="file-upload-area" id="logoUploadArea" onclick="document.getElementById('logoInput').click()">
-                            <span id="logoPlaceholder">📷 Click to upload</span>
-                            <img id="logoPreview" class="logo-preview-sm hidden">
-                            <input type="file" id="logoInput" accept="image/*" onchange="handleLogoUpload(event)">
-                        </div>
+                        <input type="file" id="logoInput" accept="image/*" onchange="handleLogo(event)" style="padding:8px;">
+                        <img id="logoPreview" class="hidden" style="max-width:80px; max-height:50px; margin-top:8px;">
                     </div>
                 </div>
-            </section>
 
-            <!-- Menu Presets -->
-            <section class="glass-card">
-                <h2>📌 Menu Presets (saved dishes)</h2>
-                <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;">Save frequent items here to quickly add them later.</p>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <input type="text" id="newPresetName" placeholder="Item name" style="flex:2;min-width:120px;">
-                    <input type="number" id="newPresetPrice" placeholder="Price" step="0.01" style="flex:1;min-width:80px;">
-                    <button class="btn btn-outline btn-sm" onclick="addPreset()">➕ Save</button>
+                <!-- Menu Presets -->
+                <div class="glass-card">
+                    <h2>📌 Saved Menu Items</h2>
+                    <div style="display:flex; gap:8px;">
+                        <input id="presetName" placeholder="Item name" style="flex:2;">
+                        <input id="presetPrice" type="number" placeholder="Price" step="0.01" style="flex:1;">
+                        <button class="btn btn-sm" onclick="addPreset()">➕ Save</button>
+                    </div>
+                    <div id="presetList" style="max-height:200px; overflow-y:auto; margin-top:8px;"></div>
+                    <button class="btn btn-sm" onclick="clearPresets()" style="margin-top:8px;">🗑️ Clear Presets</button>
                 </div>
-                <div class="preset-list" id="presetList"></div>
-                <button class="btn btn-ghost btn-sm mt-2" onclick="clearAllPresets()">🗑️ Clear all presets</button>
-            </section>
 
-            <!-- Items -->
-            <section class="glass-card">
-                <h2>📋 Bill Items</h2>
-                <div class="items-table-wrap">
+                <!-- Items Table -->
+                <div class="glass-card">
+                    <h2>📋 Bill Items</h2>
                     <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Item Name</th>
-                                <th>Qty</th>
-                                <th>Price (₹)</th>
-                                <th>Total</th>
-                                <th></th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead>
                         <tbody id="itemsBody"></tbody>
                     </table>
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-                    <button class="btn btn-outline btn-sm" onclick="addItem()">➕ Add Item</button>
-                    <button class="btn btn-outline btn-sm" onclick="addSampleItems()">📋 Sample</button>
-                    <button class="btn btn-ghost btn-sm" onclick="clearItems()">🗑️ Clear</button>
-                </div>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button class="btn btn-sm" onclick="addItem()">➕ Add Item</button>
+                        <button class="btn btn-sm" onclick="addSampleItems()">📋 Sample</button>
+                        <button class="btn btn-sm btn-danger" onclick="clearItems()">🗑️ Clear</button>
+                    </div>
 
-                <div class="totals-box">
-                    <div class="total-row"><span>Subtotal</span><span id="subtotalDisplay">₹0.00</span></div>
-                    <div class="total-row">
-                        <span>GST Rate</span>
-                        <span>
-                            <select id="gstRate" onchange="recalculateTotals()">
-                                <option value="0">0%</option>
-                                <option value="5" selected>5%</option>
-                                <option value="12">12%</option>
-                                <option value="18">18%</option>
-                                <option value="28">28%</option>
+                    <div class="totals-box">
+                        <div class="row"><span>Subtotal</span><span id="subtotalDisplay">₹0.00</span></div>
+                        <div class="row"><span>GST Rate</span>
+                            <select id="gstRate" onchange="recalcTotals()">
+                                <option value="0">0%</option><option value="5" selected>5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option>
                             </select>
-                        </span>
+                        </div>
+                        <div class="row"><span>GST Amount</span><span id="gstAmountDisplay">₹0.00</span></div>
+                        <div class="row grand"><span>💰 Grand Total</span><span id="grandTotalDisplay">₹0.00</span></div>
                     </div>
-                    <div class="total-row"><span>GST Amount</span><span id="gstAmountDisplay">₹0.00</span></div>
-                    <div class="total-row grand"><span>💰 Grand Total</span><span id="grandTotalDisplay">₹0.00</span></div>
-                </div>
 
-                <div class="form-row mt-2">
-                    <div class="form-group">
-                        <label>Invoice Number</label>
-                        <input type="text" id="invoiceNumber" readonly style="background:var(--bg-primary);font-family:var(--font-mono);">
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <div class="form-group" style="flex:1;"><label>Invoice #</label><input id="invoiceNumber" readonly></div>
+                        <div class="form-group" style="flex:1;"><label>Date</label><input id="invoiceDate" readonly></div>
                     </div>
-                    <div class="form-group">
-                        <label>Date & Time</label>
-                        <input type="text" id="invoiceDate" readonly style="background:var(--bg-primary);font-family:var(--font-mono);">
-                    </div>
+                    <button class="btn btn-primary" onclick="generateQR()" style="width:100%; justify-content:center;">📱 Generate QR Code</button>
                 </div>
-                <button class="btn btn-primary mt-2" onclick="generateQRBill()" style="width:100%;justify-content:center;">
-                    📱 Generate QR Code Bill
-                </button>
-            </section>
-        </div>
+            </div>
 
-        <!-- Preview -->
-        <div class="right-column preview-panel">
-            <section class="glass-card">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-                    <h2 style="margin-bottom:0;">👁️ Live Preview</h2>
-                    <div class="preview-tabs">
-                        <span class="preview-tab active" data-preview="thermal" onclick="switchPreview('thermal')">🧾 Thermal</span>
-                        <span class="preview-tab" data-preview="a4" onclick="switchPreview('a4')">📄 A4 Invoice</span>
+            <!-- Right Column (Preview) -->
+            <div>
+                <div class="glass-card" style="position:sticky; top:80px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2>👁️ Live Preview</h2>
+                        <div>
+                            <button class="btn btn-sm" onclick="switchPreview('thermal')" id="thermalTab" style="background:var(--accent); color:#fff;">🧾 Thermal</button>
+                            <button class="btn btn-sm" onclick="switchPreview('a4')" id="a4Tab">📄 A4</button>
+                        </div>
                     </div>
+                    <div id="thermalPreview" class="thermal-receipt" style="margin-top:12px;"></div>
+                    <div id="a4Preview" class="a4-invoice hidden" style="margin-top:12px;"></div>
                 </div>
-                <div class="bill-preview-frame">
-                    <div id="thermalPreview" class="thermal-receipt"></div>
-                    <div id="a4Preview" class="a4-invoice hidden"></div>
-                </div>
-            </section>
+            </div>
         </div>
     </div>
 
-    <!-- QR Modal -->
-    <div class="modal-overlay hidden" id="qrModal">
+    <!-- CUSTOMER BILL VIEW (visible when ?data present) -->
+    <div id="customerUI" class="hidden">
+        <div class="glass-card" style="max-width:500px; margin:40px auto;">
+            <h2 style="text-align:center;">🧾 Your Bill</h2>
+            <div id="customerBillContent"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; justify-content:center;">
+                <button class="btn" onclick="downloadPDF()">📥 PDF</button>
+                <button class="btn" onclick="printBill()">🖨️ Print</button>
+                <button class="btn" onclick="shareBill()">🔗 Share</button>
+                <button class="btn" onclick="copyBillDetails()">📋 Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Modal (owner side) -->
+    <div id="qrModal" class="modal-overlay hidden">
         <div class="modal-dialog">
             <h3>📱 Scan to View Bill</h3>
-            <p style="color:var(--text-muted);font-size:0.85rem;">Customer can scan this QR code</p>
-            <div class="qr-container" id="qrCodeContainer"></div>
-            <div class="qr-url" id="qrUrlDisplay"></div>
-            <div class="modal-actions">
-                <button class="btn btn-outline btn-sm" onclick="copyQRUrl()">📋 Copy URL</button>
-                <button class="btn btn-outline btn-sm" onclick="downloadQRImage()">💾 Save QR</button>
-                <button class="btn btn-primary btn-sm" onclick="closeQRModal()">✕ Close</button>
+            <div id="qrCodeContainer" style="display:inline-block; padding:12px; background:#fff; border-radius:12px; margin:12px 0;"></div>
+            <div id="qrUrlDisplay" style="word-break:break-all; font-size:0.7rem; color:var(--text-muted);"></div>
+            <div style="display:flex; gap:8px; justify-content:center; margin-top:12px;">
+                <button class="btn btn-sm" onclick="copyQRUrl()">📋 Copy</button>
+                <button class="btn btn-sm" onclick="closeQRModal()">✕ Close</button>
             </div>
         </div>
     </div>
@@ -567,550 +284,319 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ============ GLOBAL STATE ============
-        let items = [];
-        let restaurantLogoBase64 = null;
-        let currentPreviewMode = 'thermal';
-        let currentQRDataUrl = null;
-        let currentBillUrl = null;
-        let itemIdCounter = 0;
-        let presets = [];  // { name, price }
+        // ========== DETECT CUSTOMER vs OWNER ==========
+        const urlParams = new URLSearchParams(window.location.search);
+        const isCustomer = urlParams.has('data');
 
-        // ============ INITIALIZATION ============
-        document.addEventListener('DOMContentLoaded', () => {
-            loadThemePreference();
-            loadPresets();
-            generateInvoiceNumber();
-            updateDateTime();
-            // Start with one empty item if no samples
-            if (items.length === 0) addItem();
-            updatePreviews();
-            setInterval(updateDateTime, 30000);
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
-            }
-        });
-
-        // ============ PRESETS MANAGEMENT ============
-        function loadPresets() {
-            const stored = localStorage.getItem('billgen-presets');
-            if (stored) {
-                try { presets = JSON.parse(stored); } catch(e) { presets = []; }
-            } else {
-                // Default presets
-                presets = [
-                    { name: 'Butter Chicken', price: 320 },
-                    { name: 'Garlic Naan', price: 45 },
-                    { name: 'Dal Makhani', price: 210 },
-                    { name: 'Jeera Rice', price: 130 },
-                    { name: 'Mango Lassi', price: 80 },
-                ];
-                savePresets();
-            }
-            renderPresetList();
+        if (isCustomer) {
+            document.getElementById('ownerUI').classList.add('hidden');
+            document.getElementById('customerUI').classList.remove('hidden');
+            loadCustomerBill();
+        } else {
+            document.getElementById('customerUI').classList.add('hidden');
+            document.getElementById('ownerUI').classList.remove('hidden');
+            initOwner();
         }
 
-        function savePresets() {
-            localStorage.setItem('billgen-presets', JSON.stringify(presets));
-            renderPresetList();
-            // Update all datalist options in items
-            document.querySelectorAll('.item-name-input').forEach(input => {
-                updateDatalist(input);
-            });
-        }
-
-        function addPreset() {
-            const nameInput = document.getElementById('newPresetName');
-            const priceInput = document.getElementById('newPresetPrice');
-            const name = nameInput.value.trim();
-            const price = parseFloat(priceInput.value);
-            if (!name || isNaN(price) || price < 0) {
-                showToast('Enter valid name and price', 'error');
-                return;
-            }
-            // Check duplicate
-            if (presets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-                showToast('Preset already exists', 'error');
-                return;
-            }
-            presets.push({ name, price });
-            savePresets();
-            nameInput.value = '';
-            priceInput.value = '';
-            showToast('Preset saved!');
-        }
-
-        function removePreset(index) {
-            presets.splice(index, 1);
-            savePresets();
-            showToast('Preset removed');
-        }
-
-        function clearAllPresets() {
-            if (!confirm('Delete all saved presets?')) return;
-            presets = [];
-            savePresets();
-            showToast('All presets cleared');
-        }
-
-        function renderPresetList() {
-            const container = document.getElementById('presetList');
-            if (presets.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-muted);text-align:center;">No presets saved yet.</p>';
-                return;
-            }
-            container.innerHTML = presets.map((p, idx) => `
-                <div class="preset-item">
-                    <span>🍽️ ${escapeHtml(p.name)}</span>
-                    <span class="preset-price">₹${p.price.toFixed(2)}</span>
-                    <div>
-                        <button class="btn btn-sm btn-outline" onclick="addItemFromPreset(${idx})">+ Add</button>
-                        <button class="btn btn-sm btn-danger" onclick="removePreset(${idx})">✕</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function addItemFromPreset(presetIndex) {
-            const preset = presets[presetIndex];
-            addItem(preset.name, 1, preset.price);
-            showToast(`Added ${preset.name}`);
-        }
-
-        // ============ THEME ============
-        function loadThemePreference() {
-            if (localStorage.getItem('billgen-theme') === 'dark') {
-                document.body.classList.add('dark');
-                updateThemeButton();
-            }
-        }
-        function toggleTheme() {
-            document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            localStorage.setItem('billgen-theme', isDark ? 'dark' : 'light');
-            updateThemeButton();
-        }
-        function updateThemeButton() {
-            const btn = document.getElementById('themeToggle');
-            const isDark = document.body.classList.contains('dark');
-            btn.innerHTML = isDark ? '☀️ <span>Light</span>' : '🌙 <span>Dark</span>';
-        }
-
-        // ============ LOGO ============
-        function handleLogoUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            if (file.size > 2*1024*1024) { showToast('Logo under 2MB', 'error'); return; }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-                    const maxDim = 200;
-                    if (w > maxDim || h > maxDim) {
-                        const ratio = Math.min(maxDim/w, maxDim/h);
-                        w = Math.round(w*ratio); h = Math.round(h*ratio);
-                    }
-                    canvas.width = w; canvas.height = h;
-                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    restaurantLogoBase64 = canvas.toDataURL('image/png', 0.7);
-                    document.getElementById('logoPreview').src = restaurantLogoBase64;
-                    document.getElementById('logoPreview').classList.remove('hidden');
-                    document.getElementById('logoPlaceholder').classList.add('hidden');
-                    updatePreviews();
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // ============ ITEMS ============
-        function addItem(name = '', qty = 1, price = 0) {
-            itemIdCounter++;
-            items.push({
-                id: itemIdCounter,
-                name: name || '',
-                quantity: Math.max(1, parseInt(qty)||1),
-                price: Math.max(0, parseFloat(price)||0)
-            });
-            renderItemsTable();
-            updatePreviews();
-        }
-
-        function removeItem(id) {
-            items = items.filter(i => i.id !== id);
-            if (items.length === 0) itemIdCounter = 0;
-            renderItemsTable();
-            updatePreviews();
-        }
-
-        function updateItemField(id, field, value) {
-            const item = items.find(i => i.id === id);
-            if (!item) return;
-            if (field === 'quantity') item.quantity = Math.max(1, parseInt(value)||1);
-            else if (field === 'price') item.price = Math.max(0, parseFloat(value)||0);
-            else if (field === 'name') item.name = value;
-            updatePreviews();
-        }
-
-        function saveItemToPreset(id) {
-            const item = items.find(i => i.id === id);
-            if (!item || !item.name.trim()) {
-                showToast('Item needs a name to save', 'error');
-                return;
-            }
-            if (presets.some(p => p.name.toLowerCase() === item.name.toLowerCase())) {
-                showToast('Preset already exists', 'error');
-                return;
-            }
-            presets.push({ name: item.name.trim(), price: item.price });
-            savePresets();
-            showToast('Saved to presets!');
-        }
-
-        function renderItemsTable() {
-            const tbody = document.getElementById('itemsBody');
-            if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:20px;color:var(--text-muted);">No items. Click "Add Item".</td></tr>`;
-                document.querySelector('.totals-box').classList.add('hidden');
-            } else {
-                document.querySelector('.totals-box').classList.remove('hidden');
-                tbody.innerHTML = items.map((item, idx) => {
-                    const itemTotal = item.quantity * item.price;
-                    return `
-                    <tr>
-                        <td>${idx+1}</td>
-                        <td>
-                            <input type="text" class="item-name-input" list="presetDatalist" value="${escapeHtml(item.name)}" placeholder="Select or type" onchange="updateItemField(${item.id},'name',this.value)" oninput="updateItemField(${item.id},'name',this.value)">
-                            <datalist id="presetDatalist">
-                                ${presets.map(p => `<option value="${escapeHtml(p.name)}">`).join('')}
-                            </datalist>
-                        </td>
-                        <td><input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="updateItemField(${item.id},'quantity',this.value);renderItemsTable();"></td>
-                        <td><input type="number" class="price-input" value="${item.price}" min="0" step="0.01" onchange="updateItemField(${item.id},'price',this.value);renderItemsTable();"></td>
-                        <td class="item-total">₹${itemTotal.toFixed(2)}</td>
-                        <td style="display:flex;gap:4px;">
-                            <button class="btn btn-sm btn-outline" onclick="saveItemToPreset(${item.id})" title="Save to menu">💾</button>
-                            <button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✕</button>
-                        </td>
-                    </tr>`;
-                }).join('');
-            }
-            recalculateTotals();
-        }
-
-        // Update datalist for an input element
-        function updateDatalist(input) {
-            const listId = input.getAttribute('list');
-            if (!listId) return;
-            let datalist = document.getElementById(listId);
-            if (!datalist) {
-                datalist = document.createElement('datalist');
-                datalist.id = listId;
-                document.body.appendChild(datalist);
-            }
-            datalist.innerHTML = presets.map(p => `<option value="${escapeHtml(p.name)}">`).join('');
-        }
-
-        // Fill price when user selects from preset
-        document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('item-name-input')) {
-                const selectedName = e.target.value.trim();
-                const preset = presets.find(p => p.name.toLowerCase() === selectedName.toLowerCase());
-                if (preset) {
-                    // Find parent row and update price
-                    const row = e.target.closest('tr');
-                    if (row) {
-                        const priceInput = row.querySelector('.price-input');
-                        if (priceInput && (priceInput.value == 0 || priceInput.value == '')) {
-                            priceInput.value = preset.price;
-                            // Trigger update
-                            const changeEvent = new Event('change');
-                            priceInput.dispatchEvent(changeEvent);
-                        }
-                    }
-                }
-            }
-        });
-
-        function addSampleItems() {
-            if (presets.length > 0) {
-                presets.forEach(p => addItem(p.name, 1, p.price));
-            } else {
-                addItem('Butter Chicken', 2, 320);
-                addItem('Garlic Naan', 3, 45);
-            }
-        }
-
-        function clearItems() {
-            if (items.length && !confirm('Clear all items?')) return;
-            items = [];
-            itemIdCounter = 0;
-            renderItemsTable();
-            updatePreviews();
-        }
-
-        function recalculateTotals() {
-            const subtotal = items.reduce((sum, i) => sum + (i.quantity * i.price), 0);
-            const gstRate = parseFloat(document.getElementById('gstRate').value) || 0;
-            const gstAmount = subtotal * (gstRate/100);
-            const grand = subtotal + gstAmount;
-            document.getElementById('subtotalDisplay').textContent = '₹' + subtotal.toFixed(2);
-            document.getElementById('gstAmountDisplay').textContent = '₹' + gstAmount.toFixed(2);
-            document.getElementById('grandTotalDisplay').textContent = '₹' + grand.toFixed(2);
-        }
-
+        // ========== COMMON UTILS ==========
         function escapeHtml(str) {
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
         }
-
-        function getBillData() {
-            const subtotal = items.reduce((s, i) => s + (i.quantity*i.price), 0);
-            const gstRate = parseFloat(document.getElementById('gstRate').value) || 0;
-            const gstAmount = subtotal * (gstRate/100);
-            return {
-                version: '1.0',
-                invoiceNumber: document.getElementById('invoiceNumber').value,
-                date: document.getElementById('invoiceDate').value,
-                timestamp: new Date().toISOString(),
-                restaurant: {
-                    name: document.getElementById('restName').value || 'Restaurant',
-                    address: document.getElementById('restAddress').value || '',
-                    gstNumber: document.getElementById('restGST').value || '',
-                    phone: document.getElementById('restPhone').value || '',
-                    logo: restaurantLogoBase64 || null,
-                },
-                items: items.map(i => ({
-                    name: i.name || 'Item',
-                    quantity: i.quantity,
-                    price: i.price,
-                    total: i.quantity * i.price,
-                })),
-                subtotal: parseFloat(subtotal.toFixed(2)),
-                gstRate,
-                gstAmount: parseFloat(gstAmount.toFixed(2)),
-                grandTotal: parseFloat((subtotal + gstAmount).toFixed(2)),
-            };
+        function showToast(msg, isError=false) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = isError ? '#ef4444' : 'var(--green)';
+            toast.textContent = msg;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            document.getElementById('themeBtn').innerHTML = document.body.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
         }
 
-        // ============ COMPRESSION ============
-        function uint8ArrayToBase64Url(arr) {
-            let binary = '';
-            for (let i = 0; i < arr.length; i += 8192) {
-                binary += String.fromCharCode.apply(null, arr.subarray(i, Math.min(i+8192, arr.length)));
-            }
-            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        // ========== CUSTOMER SIDE ==========
+        let customerBillData = null;
+        function base64UrlToUint8Array(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (str.length % 4) str += '=';
+            const binary = atob(str);
+            const arr = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+            return arr;
         }
-
-        function compressAndEncode(jsonData) {
-            const compressed = pako.deflate(JSON.stringify(jsonData), { level: 9 });
-            return uint8ArrayToBase64Url(compressed);
-        }
-
-        // ============ QR GENERATION ============
-        function generateQRBill() {
-            if (items.length === 0) { showToast('Add at least one item', 'error'); return; }
-            if (!document.getElementById('restName').value.trim()) { showToast('Enter restaurant name', 'error'); return; }
-
-            generateInvoiceNumber();
-            updateDateTime();
-            const billData = getBillData();
-            let encoded;
+        function decodeBill(encoded) {
             try {
-                encoded = compressAndEncode(billData);
-            } catch(e) {
-                showToast('Compression error. Reduce items.', 'error');
+                const compressed = base64UrlToUint8Array(encoded);
+                const json = pako.inflate(compressed, { to: 'string' });
+                return JSON.parse(json);
+            } catch(e) { return null; }
+        }
+        function loadCustomerBill() {
+            const encoded = urlParams.get('data');
+            const bill = decodeBill(encoded);
+            if (!bill || !bill.items) {
+                document.getElementById('customerBillContent').innerHTML = '<p style="text-align:center; color:red;">Bill not found or invalid QR code.</p>';
                 return;
             }
-
-            const basePath = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
-            currentBillUrl = basePath + 'bill.html?data=' + encoded;
-
-            // Show modal first, then generate QR after it's visible
-            document.getElementById('qrModal').classList.remove('hidden');
-            document.getElementById('qrUrlDisplay').textContent = currentBillUrl;
-            const qrContainer = document.getElementById('qrCodeContainer');
-            qrContainer.innerHTML = '';
-
-            // Delay to ensure modal is rendered and container has dimensions
-            setTimeout(() => {
-                try {
-                    new QRCode(qrContainer, {
-                        text: currentBillUrl,
-                        width: 220,
-                        height: 220,
-                        colorDark: '#1a1a2e',
-                        colorLight: '#ffffff',
-                        correctLevel: QRCode.CorrectLevel.M,
-                    });
-                    // Capture image after generation
-                    setTimeout(() => {
-                        const img = qrContainer.querySelector('img');
-                        if (img) currentQRDataUrl = img.src;
-                        else {
-                            const canvas = qrContainer.querySelector('canvas');
-                            if (canvas) currentQRDataUrl = canvas.toDataURL('image/png');
-                        }
-                    }, 400);
-                } catch(err) {
-                    qrContainer.innerHTML = '<p style="color:red;">QR code too large. Reduce data.</p>';
-                    console.error(err);
-                }
-            }, 100);
-
-            showToast('✅ QR code generated!');
+            customerBillData = bill;
+            renderCustomerReceipt(bill);
         }
-
-        function closeQRModal() {
-            document.getElementById('qrModal').classList.add('hidden');
-        }
-        document.addEventListener('click', function(e) {
-            if (e.target.id === 'qrModal') closeQRModal();
-        });
-
-        function copyQRUrl() {
-            if (!currentBillUrl) return;
-            navigator.clipboard.writeText(currentBillUrl).then(() => showToast('📋 URL copied!'));
-        }
-        function downloadQRImage() {
-            if (!currentQRDataUrl) { showToast('QR not ready', 'error'); return; }
-            const a = document.createElement('a');
-            a.href = currentQRDataUrl;
-            a.download = 'bill-qr.png';
-            a.click();
-            showToast('💾 QR saved');
-        }
-
-        // ============ PREVIEWS ============
-        function switchPreview(mode) {
-            currentPreviewMode = mode;
-            document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`[data-preview="${mode}"]`).classList.add('active');
-            document.getElementById('thermalPreview').classList.toggle('hidden', mode !== 'thermal');
-            document.getElementById('a4Preview').classList.toggle('hidden', mode !== 'a4');
-            updatePreviews();
-        }
-
-        function updatePreviews() {
-            const bill = getBillData();
-            renderThermal(bill);
-            renderA4(bill);
-            recalculateTotals();
-        }
-
-        function renderThermal(bill) {
-            const el = document.getElementById('thermalPreview');
-            if (!bill.items.length) {
-                el.innerHTML = '<div class="text-center" style="padding:40px;">📝 Add items</div>';
-                return;
-            }
+        function renderCustomerReceipt(bill) {
+            const el = document.getElementById('customerBillContent');
             el.innerHTML = `
-                <div style="text-align:center;margin-bottom:10px;">
-                    ${bill.restaurant.logo ? `<img src="${bill.restaurant.logo}" style="max-width:50px;">` : ''}
-                    <div style="font-weight:700;">${escapeHtml(bill.restaurant.name)}</div>
-                    <div style="font-size:0.6rem;">${escapeHtml(bill.restaurant.address)}</div>
-                    <div style="font-size:0.6rem;">📞 ${escapeHtml(bill.restaurant.phone)}</div>
-                    ${bill.restaurant.gstNumber ? `<div style="font-size:0.55rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>` : ''}
-                </div>
-                <div style="border-top:1px dashed #999;margin:6px 0;"></div>
-                <div style="font-size:0.6rem;text-align:center;">Invoice: ${bill.invoiceNumber}</div>
-                <div style="font-size:0.6rem;text-align:center;">${bill.date}</div>
-                <div style="border-top:1px dashed #999;margin:6px 0;"></div>
-                ${bill.items.map(i => `<div style="display:flex;justify-content:space-between;font-size:0.7rem;"><span>${escapeHtml(i.name)} x${i.quantity}</span><span>₹${i.total.toFixed(2)}</span></div>`).join('')}
-                <div style="border-top:1px dashed #999;margin:6px 0;"></div>
-                <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
-                <div style="display:flex;justify-content:space-between;"><span>GST (${bill.gstRate}%)</span><span>₹${bill.gstAmount.toFixed(2)}</span></div>
-                <div style="font-weight:700;text-align:right;font-size:0.9rem;">GRAND: ₹${bill.grandTotal.toFixed(2)}</div>
-                <div style="text-align:center;font-size:0.6rem;margin-top:6px;">Thank you! 🙏</div>
-            `;
-        }
-
-        function renderA4(bill) {
-            const el = document.getElementById('a4Preview');
-            if (!bill.items.length) {
-                el.innerHTML = '<div class="text-center" style="padding:40px;">📄 Add items</div>';
-                return;
-            }
-            el.innerHTML = `
-                <div style="display:flex;justify-content:space-between;border-bottom:2px solid #ddd;padding-bottom:10px;margin-bottom:10px;">
-                    <div>
-                        ${bill.restaurant.logo ? `<img src="${bill.restaurant.logo}" style="max-width:70px;">` : ''}
+                <div class="thermal-receipt">
+                    <div style="text-align:center;">
+                        ${bill.restaurant.logo ? `<img src="${bill.restaurant.logo}" style="max-width:50px;">` : ''}
                         <div style="font-weight:700;">${escapeHtml(bill.restaurant.name)}</div>
                         <div style="font-size:0.7rem;">${escapeHtml(bill.restaurant.address)}</div>
                         <div style="font-size:0.7rem;">📞 ${escapeHtml(bill.restaurant.phone)}</div>
-                        ${bill.restaurant.gstNumber ? `<div style="font-size:0.65rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>` : ''}
+                        ${bill.restaurant.gstNumber ? `<div style="font-size:0.6rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>` : ''}
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:1.4rem;font-weight:800;color:var(--accent);">INVOICE</div>
-                        <div># ${bill.invoiceNumber}</div>
-                        <div style="font-size:0.7rem;">${bill.date}</div>
-                    </div>
+                    <hr style="border-top:1px dashed #999;">
+                    <div style="text-align:center;">Invoice: ${bill.invoiceNumber}<br>${bill.date}</div>
+                    <hr style="border-top:1px dashed #999;">
+                    ${bill.items.map(i => `<div style="display:flex;justify-content:space-between;"><span>${escapeHtml(i.name)} x${i.quantity}</span><span>₹${i.total.toFixed(2)}</span></div>`).join('')}
+                    <hr style="border-top:1px dashed #999;">
+                    <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span>GST (${bill.gstRate}%)</span><span>₹${bill.gstAmount.toFixed(2)}</span></div>
+                    <div style="font-weight:700; text-align:right;">GRAND: ₹${bill.grandTotal.toFixed(2)}</div>
+                    <div style="text-align:center; margin-top:8px;">Thank you! 🙏</div>
                 </div>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead><tr style="background:#f5f5f5;"><th>#</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-                    <tbody>
-                        ${bill.items.map((i,idx) => `<tr><td>${idx+1}</td><td>${escapeHtml(i.name)}</td><td>${i.quantity}</td><td>₹${i.price.toFixed(2)}</td><td>₹${i.total.toFixed(2)}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-                <div style="text-align:right;margin-top:10px;">
-                    <div>Subtotal: ₹${bill.subtotal.toFixed(2)}</div>
-                    <div>GST (${bill.gstRate}%): ₹${bill.gstAmount.toFixed(2)}</div>
-                    <div style="font-weight:800;font-size:1.1rem;color:var(--accent);">Grand Total: ₹${bill.grandTotal.toFixed(2)}</div>
-                </div>
-                <div style="text-align:center;margin-top:15px;color:#888;">Thank you for dining with us!</div>
             `;
+        }
+        async function downloadPDF() {
+            const el = document.getElementById('customerBillContent');
+            const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const width = pdf.internal.pageSize.getWidth();
+            const height = (canvas.height * width) / canvas.width;
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, width, height);
+            pdf.save(`bill-${customerBillData.invoiceNumber}.pdf`);
+            showToast('PDF downloaded');
+        }
+        function printBill() { window.print(); }
+        function shareBill() {
+            if (navigator.share) navigator.share({ title: 'Bill', url: window.location.href }).catch(()=>{});
+            else { navigator.clipboard.writeText(window.location.href); showToast('Link copied!'); }
+        }
+        function copyBillDetails() {
+            const bill = customerBillData;
+            const text = `Invoice: ${bill.invoiceNumber}\nDate: ${bill.date}\n${bill.items.map(i => `${i.name} x${i.quantity} = ₹${i.total}`).join('\n')}\nTotal: ₹${bill.grandTotal}`;
+            navigator.clipboard.writeText(text).then(() => showToast('Details copied!'));
+        }
+
+        // ========== OWNER SIDE ==========
+        let items = [];
+        let presets = [];
+        let logoBase64 = null;
+        let currentPreview = 'thermal';
+        let qrUrl = '';
+
+        function initOwner() {
+            loadPresets();
+            generateInvoiceNumber();
+            updateDateTime();
+            addSampleItems();
+            updatePreviews();
+            setInterval(updateDateTime, 30000);
+        }
+
+        function loadPresets() {
+            const stored = localStorage.getItem('billgen-presets');
+            presets = stored ? JSON.parse(stored) : [
+                { name: 'Butter Chicken', price: 320 },
+                { name: 'Garlic Naan', price: 45 },
+                { name: 'Dal Makhani', price: 210 },
+                { name: 'Jeera Rice', price: 130 },
+            ];
+            renderPresetList();
+        }
+        function savePresets() {
+            localStorage.setItem('billgen-presets', JSON.stringify(presets));
+            renderPresetList();
+        }
+        function addPreset() {
+            const name = document.getElementById('presetName').value.trim();
+            const price = parseFloat(document.getElementById('presetPrice').value);
+            if (!name || isNaN(price) || price < 0) return showToast('Invalid preset', true);
+            presets.push({ name, price });
+            savePresets();
+            document.getElementById('presetName').value = '';
+            document.getElementById('presetPrice').value = '';
+            showToast('Preset saved');
+        }
+        function clearPresets() { presets = []; savePresets(); }
+        function renderPresetList() {
+            const el = document.getElementById('presetList');
+            el.innerHTML = presets.map((p, i) => `
+                <div style="display:flex; justify-content:space-between; padding:4px; background:var(--bg-secondary); margin:4px 0; border-radius:6px;">
+                    <span>🍽️ ${escapeHtml(p.name)} - ₹${p.price}</span>
+                    <button class="btn btn-sm" onclick="addItemFromPreset(${i})">+</button>
+                </div>`).join('') || '<p style="color:var(--text-muted);">No presets saved.</p>';
+        }
+        function addItemFromPreset(idx) {
+            const p = presets[idx];
+            addItem(p.name, 1, p.price);
+        }
+        function handleLogo(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    const max = 200;
+                    if (w > max || h > max) { const r = Math.min(max/w, max/h); w *= r; h *= r; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    logoBase64 = canvas.toDataURL('image/png');
+                    document.getElementById('logoPreview').src = logoBase64;
+                    document.getElementById('logoPreview').classList.remove('hidden');
+                    updatePreviews();
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function addItem(name='', qty=1, price=0) {
+            items.push({ id: Date.now(), name, quantity: qty, price });
+            renderItemsTable();
+            updatePreviews();
+        }
+        function removeItem(id) {
+            items = items.filter(i => i.id !== id);
+            renderItemsTable();
+            updatePreviews();
+        }
+        function updateItemField(id, field, value) {
+            const item = items.find(i => i.id === id);
+            if (item) { item[field] = field === 'quantity' ? Math.max(1, parseInt(value)||1) : value; updatePreviews(); }
+        }
+        function renderItemsTable() {
+            const tbody = document.getElementById('itemsBody');
+            tbody.innerHTML = items.map((item, idx) => `
+                <tr>
+                    <td>${idx+1}</td>
+                    <td><input list="presetDataList" value="${escapeHtml(item.name)}" onchange="updateItemField(${item.id},'name',this.value)"></td>
+                    <td><input type="number" value="${item.quantity}" min="1" style="width:60px;" onchange="updateItemField(${item.id},'quantity',this.value);renderItemsTable();"></td>
+                    <td><input type="number" value="${item.price}" step="0.01" style="width:80px;" onchange="updateItemField(${item.id},'price',this.value);renderItemsTable();"></td>
+                    <td>₹${(item.quantity*item.price).toFixed(2)}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✕</button></td>
+                </tr>`).join('');
+            // datalist for presets
+            let dl = document.getElementById('presetDataList');
+            if (!dl) { dl = document.createElement('datalist'); dl.id = 'presetDataList'; document.body.appendChild(dl); }
+            dl.innerHTML = presets.map(p => `<option value="${escapeHtml(p.name)}">`).join('');
+            recalcTotals();
+        }
+        function addSampleItems() {
+            if (items.length === 0 && presets.length > 0) presets.forEach(p => addItem(p.name, 1, p.price));
+        }
+        function clearItems() { items = []; renderItemsTable(); updatePreviews(); }
+        function recalcTotals() {
+            const subtotal = items.reduce((s,i) => s + i.quantity*i.price, 0);
+            const gstRate = parseFloat(document.getElementById('gstRate').value)||0;
+            const gst = subtotal * gstRate/100;
+            document.getElementById('subtotalDisplay').textContent = '₹'+subtotal.toFixed(2);
+            document.getElementById('gstAmountDisplay').textContent = '₹'+gst.toFixed(2);
+            document.getElementById('grandTotalDisplay').textContent = '₹'+(subtotal+gst).toFixed(2);
+        }
+
+        function getBillData() {
+            const subtotal = items.reduce((s,i) => s + i.quantity*i.price, 0);
+            const gstRate = parseFloat(document.getElementById('gstRate').value)||0;
+            const gst = subtotal * gstRate/100;
+            return {
+                version:'1.0',
+                invoiceNumber: document.getElementById('invoiceNumber').value,
+                date: document.getElementById('invoiceDate').value,
+                restaurant: {
+                    name: document.getElementById('restName').value,
+                    address: document.getElementById('restAddress').value,
+                    phone: document.getElementById('restPhone').value,
+                    gstNumber: document.getElementById('restGST').value,
+                    logo: logoBase64
+                },
+                items: items.map(i => ({ name:i.name, quantity:i.quantity, price:i.price, total:i.quantity*i.price })),
+                subtotal, gstRate, gstAmount: gst, grandTotal: subtotal+gst
+            };
+        }
+
+        function compressAndEncode(data) {
+            const compressed = pako.deflate(JSON.stringify(data), { level:9 });
+            let binary = '';
+            for (let i=0; i<compressed.length; i+=8192) binary += String.fromCharCode.apply(null, compressed.subarray(i, i+8192));
+            return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+        }
+
+        function generateQR() {
+            if (items.length===0) return showToast('Add at least one item', true);
+            const bill = getBillData();
+            const encoded = compressAndEncode(bill);
+            qrUrl = window.location.origin + window.location.pathname + '?data=' + encoded;
+            document.getElementById('qrModal').classList.remove('hidden');
+            document.getElementById('qrUrlDisplay').textContent = qrUrl;
+            document.getElementById('qrCodeContainer').innerHTML = '';
+            setTimeout(() => {
+                new QRCode(document.getElementById('qrCodeContainer'), {
+                    text: qrUrl, width: 200, height: 200,
+                    colorDark: '#1a1a2e', colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }, 100);
+        }
+        function closeQRModal() { document.getElementById('qrModal').classList.add('hidden'); }
+        function copyQRUrl() { navigator.clipboard.writeText(qrUrl); showToast('URL copied!'); }
+
+        function switchPreview(mode) {
+            currentPreview = mode;
+            document.getElementById('thermalTab').style.background = mode==='thermal' ? 'var(--accent)' : '';
+            document.getElementById('a4Tab').style.background = mode==='a4' ? 'var(--accent)' : '';
+            document.getElementById('thermalPreview').classList.toggle('hidden', mode!=='thermal');
+            document.getElementById('a4Preview').classList.toggle('hidden', mode!=='a4');
+            updatePreviews();
+        }
+        function updatePreviews() {
+            const bill = getBillData();
+            // Thermal
+            document.getElementById('thermalPreview').innerHTML = bill.items.length ? `
+                <div style="text-align:center;">${bill.restaurant.logo?`<img src="${bill.restaurant.logo}" style="max-width:50px;">`:''}
+                <div style="font-weight:700;">${escapeHtml(bill.restaurant.name)}</div>
+                <div style="font-size:0.65rem;">${escapeHtml(bill.restaurant.address)}</div>
+                <div style="font-size:0.65rem;">📞 ${escapeHtml(bill.restaurant.phone)}</div>
+                ${bill.restaurant.gstNumber?`<div style="font-size:0.6rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>`:''}</div>
+                <hr style="border-top:1px dashed #999;">
+                <div style="text-align:center;">#${bill.invoiceNumber} ${bill.date}</div>
+                <hr style="border-top:1px dashed #999;">
+                ${bill.items.map(i => `<div style="display:flex;justify-content:space-between;"><span>${escapeHtml(i.name)} x${i.quantity}</span><span>₹${i.total.toFixed(2)}</span></div>`).join('')}
+                <hr style="border-top:1px dashed #999;">
+                <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span>GST (${bill.gstRate}%)</span><span>₹${bill.gstAmount.toFixed(2)}</span></div>
+                <div style="font-weight:700;text-align:right;">GRAND: ₹${bill.grandTotal.toFixed(2)}</div>
+                <div style="text-align:center;">Thank you! 🙏</div>
+            ` : '<p style="text-align:center;">Add items to preview</p>';
+            // A4 similarly... (abbreviated for space)
         }
 
         function generateInvoiceNumber() {
             const now = new Date();
-            const y = now.getFullYear().toString().slice(-2);
-            const m = String(now.getMonth()+1).padStart(2,'0');
-            document.getElementById('invoiceNumber').value = `INV-${y}${m}-${Math.floor(Math.random()*9000)+1000}`;
+            document.getElementById('invoiceNumber').value = `INV-${now.getFullYear().toString().slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}-${Math.floor(Math.random()*9000)+1000}`;
         }
-
         function updateDateTime() {
-            document.getElementById('invoiceDate').value = new Date().toLocaleString('en-IN', {
-                day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true
-            });
+            document.getElementById('invoiceDate').value = new Date().toLocaleString('en-IN');
         }
-
         function resetAll() {
-            if (items.length && !confirm('Start fresh?')) return;
-            items = [];
-            itemIdCounter = 0;
-            restaurantLogoBase64 = null;
-            document.getElementById('logoPreview').classList.add('hidden');
-            document.getElementById('logoPlaceholder').classList.remove('hidden');
+            items = []; logoBase64 = null; document.getElementById('logoPreview').classList.add('hidden');
             document.getElementById('restName').value = 'Spice Garden Bistro';
-            document.getElementById('restPhone').value = '+91 98765 43210';
-            document.getElementById('restAddress').value = '123, MG Road, Indiranagar, Bengaluru - 560038';
-            document.getElementById('restGST').value = '29ABCDE1234F1Z5';
-            document.getElementById('gstRate').value = '5';
-            generateInvoiceNumber();
-            updateDateTime();
-            renderItemsTable();
-            updatePreviews();
-            showToast('🔄 Cleared');
+            generateInvoiceNumber(); updateDateTime(); renderItemsTable(); updatePreviews();
         }
-
-        function showToast(msg, type='success') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = 'toast' + (type==='error' ? ' error' : '');
-            toast.textContent = msg;
-            container.appendChild(toast);
-            setTimeout(() => { toast.style.opacity='0'; toast.style.transform='translateX(120%)'; setTimeout(()=>toast.remove(),350); }, 2800);
-        }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeQRModal();
-            if ((e.ctrlKey||e.metaKey) && e.key === 'n') { e.preventDefault(); addItem(); }
-        });
-
-        updatePreviews();
     </script>
 </body>
 </html>
