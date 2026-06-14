@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Bill</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #1a1a2e;
+            --muted: #7a7a9a;
+            --accent: #e85d3a;
+            --radius: 16px;
+            --shadow: 0 8px 32px rgba(0,0,0,0.08);
+        }
+        .dark { --bg: #0f0f1a; --card-bg: #1a1a2e; --text: #e8e8f0; --muted: #707090; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 16px;
+            transition: background 0.3s;
+        }
+        .bill-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        .error-box {
+            text-align: center;
+            padding: 40px;
+            background: #fff0ec;
+            border-radius: var(--radius);
+            color: #d14a2a;
+            font-weight: 600;
+        }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #e85d3a;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+        .btn-outline { background: transparent; border: 1.5px solid #ccc; color: inherit; }
+        .btn-outline:hover { border-color: #e85d3a; }
+        .thermal-receipt {
+            background: #fffdf7;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 12px 0;
+            color: #1a1a1a;
+        }
+        .dark .thermal-receipt { background: #1e1e18; color: #e8e8e0; border-color: #444; }
+        .a4-invoice {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 0.85rem;
+            color: #1a1a1a;
+        }
+        .dark .a4-invoice { background: #1c1c28; color: #e8e8e0; border-color: #333; }
+        .hidden { display: none; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn { from { transform:translateX(120%); } }
+    </style>
+</head>
+<body>
+    <div class="bill-card" id="app">
+        <div id="loading">⏳ Loading bill...</div>
+        <div id="error" class="error-box hidden">Bill not found or invalid QR code.</div>
+        <div id="billContainer" class="hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="margin:0;">🧾 Your Bill</h2>
+                <div>
+                    <button class="btn btn-outline" onclick="toggleView()" id="viewToggle">📄 A4</button>
+                    <button class="btn btn-outline" onclick="toggleTheme()">🌓</button>
+                </div>
+            </div>
+            <div id="receiptView" class="thermal-receipt"></div>
+            <div id="a4View" class="a4-invoice hidden"></div>
+            <div class="btn-group">
+                <button class="btn" onclick="downloadPDF()">📥 Download PDF</button>
+                <button class="btn" onclick="printBill()">🖨️ Print</button>
+                <button class="btn" onclick="shareBill()">🔗 Share</button>
+                <button class="btn" onclick="copyDetails()">📋 Copy</button>
+            </div>
+        </div>
+    </div>
+    <div id="toast" class="hidden"></div>
+
+    <script>
+        let billData = null;
+        let currentView = 'receipt'; // 'receipt' or 'a4'
+
+        function base64UrlToUint8Array(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (str.length % 4) str += '=';
+            const binary = atob(str);
+            const arr = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+            return arr;
+        }
+
+        function decodeBill(encoded) {
+            try {
+                const compressed = base64UrlToUint8Array(encoded);
+                const json = pako.inflate(compressed, { to: 'string' });
+                return JSON.parse(json);
+            } catch(e) {
+                return null;
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function renderReceipt(bill) {
+            const el = document.getElementById('receiptView');
+            el.innerHTML = `
+                <div style="text-align:center;margin-bottom:8px;">
+                    ${bill.restaurant.logo ? `<img src="${bill.restaurant.logo}" style="max-width:50px;">` : ''}
+                    <div style="font-weight:700;">${escapeHtml(bill.restaurant.name)}</div>
+                    <div style="font-size:0.65rem;">${escapeHtml(bill.restaurant.address)}</div>
+                    <div style="font-size:0.65rem;">📞 ${escapeHtml(bill.restaurant.phone)}</div>
+                    ${bill.restaurant.gstNumber ? `<div style="font-size:0.6rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>` : ''}
+                </div>
+                <hr style="border-top:1px dashed #999;">
+                <div style="font-size:0.65rem;text-align:center;">Invoice: ${bill.invoiceNumber}</div>
+                <div style="font-size:0.65rem;text-align:center;">${bill.date}</div>
+                <hr style="border-top:1px dashed #999;">
+                ${bill.items.map(i => `<div style="display:flex;justify-content:space-between;font-size:0.7rem;"><span>${escapeHtml(i.name)} x${i.quantity}</span><span>₹${i.total.toFixed(2)}</span></div>`).join('')}
+                <hr style="border-top:1px dashed #999;">
+                <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span>GST (${bill.gstRate}%)</span><span>₹${bill.gstAmount.toFixed(2)}</span></div>
+                <div style="font-weight:700;text-align:right;font-size:0.9rem;">GRAND: ₹${bill.grandTotal.toFixed(2)}</div>
+                <div style="text-align:center;margin-top:8px;font-size:0.65rem;">Thank you! 🙏</div>
+            `;
+        }
+
+        function renderA4(bill) {
+            const el = document.getElementById('a4View');
+            el.innerHTML = `
+                <div style="display:flex;justify-content:space-between;border-bottom:2px solid #ddd;padding-bottom:10px;margin-bottom:10px;">
+                    <div>
+                        ${bill.restaurant.logo ? `<img src="${bill.restaurant.logo}" style="max-width:70px;">` : ''}
+                        <div style="font-weight:700;">${escapeHtml(bill.restaurant.name)}</div>
+                        <div style="font-size:0.7rem;">${escapeHtml(bill.restaurant.address)}</div>
+                        <div style="font-size:0.7rem;">📞 ${escapeHtml(bill.restaurant.phone)}</div>
+                        ${bill.restaurant.gstNumber ? `<div style="font-size:0.65rem;">GST: ${escapeHtml(bill.restaurant.gstNumber)}</div>` : ''}
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1.2rem;font-weight:800;color:#e85d3a;">INVOICE</div>
+                        <div># ${bill.invoiceNumber}</div>
+                        <div style="font-size:0.7rem;">${bill.date}</div>
+                    </div>
+                </div>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="background:#f5f5f5;"><th>#</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                    <tbody>${bill.items.map((i,idx) => `<tr><td>${idx+1}</td><td>${escapeHtml(i.name)}</td><td>${i.quantity}</td><td>₹${i.price.toFixed(2)}</td><td>₹${i.total.toFixed(2)}</td></tr>`).join('')}</tbody>
+                </table>
+                <div style="text-align:right;margin-top:10px;">
+                    <div>Subtotal: ₹${bill.subtotal.toFixed(2)}</div>
+                    <div>GST (${bill.gstRate}%): ₹${bill.gstAmount.toFixed(2)}</div>
+                    <div style="font-weight:800;font-size:1.1rem;color:#e85d3a;">Grand Total: ₹${bill.grandTotal.toFixed(2)}</div>
+                </div>
+                <div style="text-align:center;margin-top:15px;color:#888;">Thank you for dining with us!</div>
+            `;
+        }
+
+        function loadBill() {
+            const params = new URLSearchParams(window.location.search);
+            const encoded = params.get('data');
+            if (!encoded) {
+                showError();
+                return;
+            }
+            billData = decodeBill(encoded);
+            if (!billData || !billData.restaurant || !billData.items) {
+                showError();
+                return;
+            }
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('billContainer').classList.remove('hidden');
+            renderReceipt(billData);
+            renderA4(billData);
+            document.getElementById('receiptView').classList.remove('hidden');
+            document.getElementById('a4View').classList.add('hidden');
+        }
+
+        function showError() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+        }
+
+        function toggleView() {
+            const receipt = document.getElementById('receiptView');
+            const a4 = document.getElementById('a4View');
+            const btn = document.getElementById('viewToggle');
+            if (currentView === 'receipt') {
+                receipt.classList.add('hidden');
+                a4.classList.remove('hidden');
+                btn.textContent = '🧾 Receipt';
+                currentView = 'a4';
+            } else {
+                a4.classList.add('hidden');
+                receipt.classList.remove('hidden');
+                btn.textContent = '📄 A4';
+                currentView = 'receipt';
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 2000);
+        }
+
+        async function downloadPDF() {
+            if (!billData) return;
+            const target = document.getElementById(currentView === 'receipt' ? 'receiptView' : 'a4View');
+            const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const width = pdf.internal.pageSize.getWidth();
+            const height = (canvas.height * width) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            pdf.save(`bill-${billData.invoiceNumber}.pdf`);
+            showToast('PDF downloaded');
+        }
+
+        function printBill() {
+            window.print();
+        }
+
+        function shareBill() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Restaurant Bill',
+                    text: `Bill from ${billData.restaurant.name} - ₹${billData.grandTotal}`,
+                    url: window.location.href,
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(window.location.href).then(() => showToast('🔗 Link copied!'));
+            }
+        }
+
+        function copyDetails() {
+            if (!billData) return;
+            const detail = `
+Invoice: ${billData.invoiceNumber}
+Date: ${billData.date}
+Restaurant: ${billData.restaurant.name}
+GST: ${billData.restaurant.gstNumber}
+Items:
+${billData.items.map(i => `${i.name} x${i.quantity} = ₹${i.total}`).join('\n')}
+Subtotal: ₹${billData.subtotal}
+GST (${billData.gstRate}%): ₹${billData.gstAmount}
+Grand Total: ₹${billData.grandTotal}
+            `.trim();
+            navigator.clipboard.writeText(detail).then(() => showToast('📋 Details copied!'));
+        }
+
+        window.addEventListener('load', loadBill);
+    </script>
+</body>
+</html>
